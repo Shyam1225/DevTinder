@@ -84,6 +84,7 @@ app.patch("/user/:userId", async (req, res) => {
     res.status(400).send("UPDATE FAILED" + err.message);
   }
 });
+
 connectDB()
   .then(() => {
     console.log("Database Connection Established....");

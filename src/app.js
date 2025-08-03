@@ -3,15 +3,52 @@ const connectDB = require("./config/database.js");
 const app = express();
 app.use(express.json());
 const User = require("./models/user");
+const { validateSignUpData } = require("./utils/validation");
+const bcrypt = require("bcrypt");
+
 
 app.post("/signup", async (req, res) => {
-  const user = new User(req.body);
-
+  //validation of data
   try {
+    validateSignUpData(req);
+
+    //Encrypt the password
+    const { firstName, lastName, emailId, password } = req.body;
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    console.log(passwordHash);
+
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
+
     await user.save();
     res.send("User Added Successfully");
   } catch (err) {
     res.status(500).send("ERROR OCCURED" + err.message);
+  }
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+
+    const user = await User.findOne({ emailId: emailId });
+    if (!user) {
+      throw new Error("Invalid Credentials");
+    }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (isPasswordValid) {
+      res.send("Login Successfully");
+    } else {
+      throw new Error("Invalid Credentials");
+    }
+  } catch (err) {
+    res.status(400).send("ERROR:" + err.message);
   }
 });
 
@@ -55,13 +92,7 @@ app.patch("/user/:userId", async (req, res) => {
   const data = req.body;
 
   try {
-    const ALLOWED_UPDATES = [
-      "photoUrl",
-      "about",
-      "gender",
-      "age",
-      "skills",
-    ];
+    const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
 
     const isAllowedUpdates = Object.keys(data).every((k) =>
       ALLOWED_UPDATES.includes(k)
@@ -70,7 +101,7 @@ app.patch("/user/:userId", async (req, res) => {
     if (!isAllowedUpdates) {
       throw new Error("Update not allowed");
     }
-    if(data?.skills.length > 10) {
+    if (data?.skills.length > 10) {
       throw new Error("Skills cannot be more than 10");
     }
 
